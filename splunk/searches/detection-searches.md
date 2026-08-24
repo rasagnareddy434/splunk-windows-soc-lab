@@ -1,199 +1,354 @@
-# Detection Searches
+# Splunk Detection Searches
 
-SPL searches used during the Windows SOC lab for monitoring and investigating Windows, Sysmon and PowerShell activity.
+This directory contains the SPL detection searches used in the Windows SOC Lab.
 
-## Windows Authentication
-
-### Failed Logon — Event ID 4625
-
-Used to identify failed Windows logon attempts.
-
-    index=* EventCode=4625
-
-Alert:
-SOC - Windows Failed Logon
-
-The alert is scheduled every 5 minutes and triggers when the search returns one or more results.
+These detections monitor Windows endpoint activity collected by the Splunk Universal Forwarder and indexed by Splunk Enterprise.
 
 ---
 
-### Successful Logon — Event ID 4624
+# Alert Configuration
 
-Used to review successful Windows authentication activity and correlate it with failed logons when investigating an account.
+All seven detection searches use the following alert configuration:
 
-    index=* EventCode=4624
-
----
-
-### Multiple Failed Logons
-
-Used to identify accounts or hosts with repeated failed authentication attempts.
-
-    index=* EventCode=4625
-    | stats count as failed_attempts by host, Account_Name
-    | where failed_attempts >= 5
-    | sort - failed_attempts
-
-The threshold of 5 is used for this lab and can be adjusted depending on the environment.
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Run Frequency: Every 5 minutes
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
 
 ---
 
-### Failed Logon Followed by Successful Logon
+# 1. SOC - PowerShell Activity
 
-Used as an investigation query when an account has both failed and successful authentication activity during the selected time range.
+## Purpose
 
-    index=* (EventCode=4625 OR EventCode=4624)
-    | stats count(eval(EventCode=4625)) as failed_logons count(eval(EventCode=4624)) as successful_logons by host, Account_Name
-    | where failed_logons > 0 AND successful_logons > 0
-    | sort - failed_logons
+Detect PowerShell activity collected from the Windows PowerShell Operational log.
 
-This is an investigation query rather than proof of compromise.
+## SPL
 
----
+```spl
+index=* source="WinEventLog:Microsoft-Windows-PowerShell/Operational"
+```
 
-## Sysmon
+## Alert Configuration
 
-### Process Creation — Event ID 1
-
-Used to monitor processes created on the Windows endpoint.
-
-    index=* sourcetype="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
-
-Useful fields during investigation include Image, CommandLine, ParentImage, ParentCommandLine, User and ProcessId.
-
-Alert:
-SOC - Sysmon Process Creation
-
----
-
-### Network Connection — Event ID 3
-
-Used to review network connections recorded by Sysmon.
-
-    index=* sourcetype="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=3
-
-Useful fields include Image, SourceIp, SourcePort, DestinationIp, DestinationPort and Protocol.
-
-Alert:
-SOC - Sysmon Network Connection
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
 
 ---
 
-### File Creation — Event ID 11
+# 2. SOC - Sysmon DNS Query
 
-Used to review files created on the endpoint.
+## Purpose
 
-    index=* sourcetype="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=11
+Detect DNS query activity using Sysmon Event ID 22.
 
-This is useful when investigating newly created executables, scripts or files associated with suspicious process activity.
+## SPL
 
-Alert:
-SOC - Sysmon File Creation
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=22
+```
 
----
+## Alert Configuration
 
-### Registry Activity — Event IDs 12, 13 and 14
-
-Used to review registry changes recorded by Sysmon.
-
-    index=* sourcetype="WinEventLog:Microsoft-Windows-Sysmon/Operational" (EventCode=12 OR EventCode=13 OR EventCode=14)
-
-This can be useful when investigating configuration changes and possible persistence-related activity.
-
-Alert:
-SOC - Sysmon Registry Activity
-
----
-
-### DNS Query — Event ID 22
-
-Used to review DNS queries made by processes on the endpoint.
-
-    index=* sourcetype="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=22
-
-Useful fields include QueryName, Image, User and ProcessId.
-
-Alert:
-SOC - Sysmon DNS Query
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
 
 ---
 
-## PowerShell
+# 3. SOC - Sysmon File Creation
 
-### PowerShell Operational Activity
+## Purpose
 
-Used to review PowerShell activity collected from the Windows PowerShell Operational channel.
+Detect file creation activity using Sysmon Event ID 11.
 
-    index=* sourcetype="WinEventLog:Microsoft-Windows-PowerShell/Operational"
+## SPL
 
-PowerShell activity is common on Windows systems, so the event should be reviewed together with the command, user, host and surrounding activity.
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=11
+```
 
-Alert:
-SOC - PowerShell Activity
+## Alert Configuration
 
----
-
-### PowerShell Script Block Logging — Event ID 4104
-
-Used to review PowerShell script block events.
-
-    index=* sourcetype="WinEventLog:Microsoft-Windows-PowerShell/Operational" EventCode=4104
-
-Event ID 4104 is particularly useful during PowerShell investigations because the event can contain the script block content.
-
----
-
-### Suspicious PowerShell Patterns
-
-Used as an investigation query for PowerShell events containing commonly reviewed command patterns.
-
-    index=* sourcetype="WinEventLog:Microsoft-Windows-PowerShell/Operational" (EventCode=4103 OR EventCode=4104) ("EncodedCommand" OR "FromBase64String" OR "Invoke-WebRequest" OR "DownloadString" OR "IEX" OR "Invoke-Expression")
-
-A match is not automatically malicious. The surrounding event details and endpoint activity need to be reviewed before making a decision.
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
 
 ---
 
-## Quick Investigation Searches
+# 4. SOC - Sysmon Network Connection
 
-### Process Activity by Host
+## Purpose
 
-    index=* sourcetype="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
-    | stats count as process_creations by host
-    | sort - process_creations
+Detect network connection activity using Sysmon Event ID 3.
 
-### PowerShell Activity by Host
+## SPL
 
-    index=* sourcetype="WinEventLog:Microsoft-Windows-PowerShell/Operational"
-    | stats count as powershell_events by host
-    | sort - powershell_events
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=3
+```
+
+## Alert Configuration
+
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
 
 ---
 
-## Current Alert Coverage
+# 5. SOC - Sysmon Process Creation
 
-The following searches have been configured as alerts in this lab:
+## Purpose
 
-- SOC - Windows Failed Logon
-- SOC - Sysmon Process Creation
-- SOC - Sysmon Network Connection
-- SOC - Sysmon File Creation
-- SOC - Sysmon Registry Activity
-- SOC - Sysmon DNS Query
-- SOC - PowerShell Activity
+Detect process creation activity using Sysmon Event ID 1.
 
-Alert results are reviewed in Splunk Triggered Alerts and can be investigated using the corresponding SPL searches above.
+## SPL
 
-## Data Sources
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+```
 
-Windows Security
-    Event IDs: 4624, 4625
+## Alert Configuration
 
-Sysmon Operational
-    Event IDs: 1, 3, 11, 12, 13, 14, 22
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
 
-PowerShell Operational
-    Event IDs: 4103, 4104
+---
 
-## Notes
+# 6. SOC - Sysmon Registry Activity
 
-These searches were developed and tested against telemetry generated by the Windows endpoint in this lab. The queries are intended for lab learning and demonstration; thresholds and detection logic would need tuning before being used in a production environment.
+## Purpose
+
+Detect registry activity using Sysmon Event IDs 12, 13 and 14.
+
+## SPL
+
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode IN (12,13,14)
+```
+
+## Alert Configuration
+
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
+
+---
+
+# 7. SOC - Windows Failed Logon
+
+## Purpose
+
+Detect failed Windows authentication attempts using Windows Security Event ID 4625.
+
+## SPL
+
+```spl
+index=* EventCode=4625
+```
+
+## Alert Configuration
+
+- Alert Type: Scheduled
+- Cron Schedule: `*/5 * * * *`
+- Time Range: Last 5 minutes
+- Dispatch Earliest Time: `-5m`
+- Dispatch Latest Time: `now`
+- Trigger Condition: Number of Results
+- Condition: Greater Than
+- Threshold: `0`
+- Status: Enabled
+- Alert Actions: None configured
+
+---
+
+# Detection Summary
+
+| Detection | Log Source | Event ID |
+|---|---|---:|
+| SOC - PowerShell Activity | Windows PowerShell Operational | All |
+| SOC - Sysmon DNS Query | Sysmon Operational | 22 |
+| SOC - Sysmon File Creation | Sysmon Operational | 11 |
+| SOC - Sysmon Network Connection | Sysmon Operational | 3 |
+| SOC - Sysmon Process Creation | Sysmon Operational | 1 |
+| SOC - Sysmon Registry Activity | Sysmon Operational | 12, 13, 14 |
+| SOC - Windows Failed Logon | Windows Security | 4625 |
+
+---
+
+# Detection Schedule Summary
+
+| Detection | Schedule | Time Range | Trigger | Status |
+|---|---|---|---|---|
+| SOC - PowerShell Activity | Every 5 minutes | Last 5 minutes | Results > 0 | Enabled |
+| SOC - Sysmon DNS Query | Every 5 minutes | Last 5 minutes | Results > 0 | Enabled |
+| SOC - Sysmon File Creation | Every 5 minutes | Last 5 minutes | Results > 0 | Enabled |
+| SOC - Sysmon Network Connection | Every 5 minutes | Last 5 minutes | Results > 0 | Enabled |
+| SOC - Sysmon Process Creation | Every 5 minutes | Last 5 minutes | Results > 0 | Enabled |
+| SOC - Sysmon Registry Activity | Every 5 minutes | Last 5 minutes | Results > 0 | Enabled |
+| SOC - Windows Failed Logon | Every 5 minutes | Last 5 minutes | Results > 0 | Enabled |
+
+---
+
+# Verification Searches
+
+The following searches can be used in Splunk Search & Reporting to verify that the required telemetry is being received.
+
+## PowerShell Activity
+
+```spl
+index=* source="WinEventLog:Microsoft-Windows-PowerShell/Operational"
+```
+
+## Sysmon DNS Query
+
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=22
+```
+
+## Sysmon File Creation
+
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=11
+```
+
+## Sysmon Network Connection
+
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=3
+```
+
+## Sysmon Process Creation
+
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+```
+
+## Sysmon Registry Activity
+
+```spl
+index=* source="WinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode IN (12,13,14)
+```
+
+## Windows Failed Logon
+
+```spl
+index=* EventCode=4625
+```
+
+---
+
+# Lab Detection Flow
+
+```text
+Windows Endpoint
+       |
+       | Windows Event Logs
+       | PowerShell Operational Logs
+       | Sysmon Operational Logs
+       v
+Splunk Universal Forwarder
+       |
+       | TCP 9997
+       v
+Splunk Enterprise
+       |
+       v
+Detection Searches
+       |
+       +---- PowerShell Activity
+       +---- Sysmon DNS Query
+       +---- Sysmon File Creation
+       +---- Sysmon Network Connection
+       +---- Sysmon Process Creation
+       +---- Sysmon Registry Activity
+       +---- Windows Failed Logon
+       |
+       v
+SOC Alerts
+```
+
+---
+
+# Recreating the Detections
+
+When this repository is cloned into another Windows SOC lab environment, the seven SPL searches can be recreated in Splunk Enterprise using the documented alert configuration.
+
+Each search should be:
+
+1. Created in Splunk Search & Reporting.
+2. Saved as an alert.
+3. Configured as a scheduled alert.
+4. Scheduled using `*/5 * * * *`.
+5. Configured with a last 5-minute search window.
+6. Configured to trigger when the number of results is greater than `0`.
+7. Enabled.
+
+The current lab does not configure email, webhook or script actions for these alerts.
+
+---
+
+# Current Detection Coverage
+
+The current detection set provides visibility into:
+
+- PowerShell activity
+- DNS queries
+- File creation
+- Network connections
+- Process creation
+- Registry activity
+- Failed Windows authentication attempts
+
+These detections provide the initial detection layer for the Windows SOC Lab.
