@@ -1,0 +1,252 @@
+<dashboard version="2" theme="light">
+    <label>SOC Setup</label>
+    <description>Windows SOC monitoring dashboard</description>
+    <definition><![CDATA[
+{
+	"title": "SOC Setup",
+	"description": "Windows SOC monitoring dashboard",
+	"inputs": {
+		"input_global_trp": {
+			"options": {
+				"defaultValue": "-24h@h,now",
+				"token": "global_time"
+			},
+			"title": "Global Time Range",
+			"type": "input.timerange"
+		}
+	},
+	"defaults": {
+		"dataSources": {
+			"ds.search": {
+				"options": {
+					"queryParameters": {
+						"earliest": "$global_time.earliest$",
+						"latest": "$global_time.latest$"
+					}
+				}
+			}
+		}
+	},
+	"dataSources": {
+		"ds_total": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* | stats count"
+			}
+		},
+		"ds_failed_logon": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* EventCode=4625 | stats count"
+			}
+		},
+		"ds_powershell": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* source=\"WinEventLog:Microsoft-Windows-PowerShell/Operational\" | stats count"
+			}
+		},
+		"ds_sysmon_process": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* source=\"WinEventLog:Microsoft-Windows-Sysmon/Operational\" EventCode=1 | stats count"
+			}
+		},
+		"ds_sysmon_network": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* source=\"WinEventLog:Microsoft-Windows-Sysmon/Operational\" EventCode=3 | stats count"
+			}
+		},
+		"ds_sysmon_dns": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* source=\"WinEventLog:Microsoft-Windows-Sysmon/Operational\" EventCode=22 | stats count"
+			}
+		},
+		"ds_sysmon_file": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* source=\"WinEventLog:Microsoft-Windows-Sysmon/Operational\" EventCode=11 | stats count"
+			}
+		},
+		"ds_sysmon_registry": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=* source=\"WinEventLog:Microsoft-Windows-Sysmon/Operational\" EventCode IN (12,13,14) | stats count"
+			}
+		}
+	},
+	"visualizations": {
+		"viz_total": {
+			"type": "splunk.singlevalue",
+			"title": "Total Events",
+			"dataSources": {
+				"primary": "ds_total"
+			}
+		},
+		"viz_failed_logon": {
+			"type": "splunk.singlevalue",
+			"title": "Windows Failed Logons",
+			"dataSources": {
+				"primary": "ds_failed_logon"
+			}
+		},
+		"viz_powershell": {
+			"type": "splunk.singlevalue",
+			"title": "PowerShell Activity",
+			"dataSources": {
+				"primary": "ds_powershell"
+			}
+		},
+		"viz_sysmon_process": {
+			"type": "splunk.singlevalue",
+			"title": "Sysmon Process Creation",
+			"dataSources": {
+				"primary": "ds_sysmon_process"
+			}
+		},
+		"viz_sysmon_network": {
+			"type": "splunk.singlevalue",
+			"title": "Sysmon Network Connections",
+			"dataSources": {
+				"primary": "ds_sysmon_network"
+			}
+		},
+		"viz_sysmon_dns": {
+			"type": "splunk.singlevalue",
+			"title": "Sysmon DNS Queries",
+			"dataSources": {
+				"primary": "ds_sysmon_dns"
+			}
+		},
+		"viz_sysmon_file": {
+			"type": "splunk.singlevalue",
+			"title": "Sysmon File Creation",
+			"dataSources": {
+				"primary": "ds_sysmon_file"
+			}
+		},
+		"viz_sysmon_registry": {
+			"type": "splunk.singlevalue",
+			"title": "Sysmon Registry Activity",
+			"dataSources": {
+				"primary": "ds_sysmon_registry"
+			}
+		}
+	},
+	"layout": {
+		"globalInputs": [
+			"input_global_trp"
+		],
+		"tabs": {
+			"items": [
+				{
+					"label": "Overview",
+					"layoutId": "layout_1"
+				}
+			]
+		},
+		"layoutDefinitions": {
+			"layout_1": {
+				"type": "absolute",
+				"options": {
+					"width": 1440,
+					"height": 1000,
+					"display": "auto"
+				},
+				"structure": [
+					{
+						"item": "viz_total",
+						"type": "block",
+						"position": {
+							"x": 20,
+							"y": 30,
+							"w": 680,
+							"h": 200
+						}
+					},
+					{
+						"item": "viz_failed_logon",
+						"type": "block",
+						"position": {
+							"x": 720,
+							"y": 30,
+							"w": 680,
+							"h": 200
+						}
+					},
+					{
+						"item": "viz_powershell",
+						"type": "block",
+						"position": {
+							"x": 20,
+							"y": 260,
+							"w": 680,
+							"h": 160
+						}
+					},
+					{
+						"item": "viz_sysmon_process",
+						"type": "block",
+						"position": {
+							"x": 720,
+							"y": 260,
+							"w": 680,
+							"h": 160
+						}
+					},
+					{
+						"item": "viz_sysmon_network",
+						"type": "block",
+						"position": {
+							"x": 20,
+							"y": 450,
+							"w": 680,
+							"h": 160
+						}
+					},
+					{
+						"item": "viz_sysmon_dns",
+						"type": "block",
+						"position": {
+							"x": 720,
+							"y": 450,
+							"w": 680,
+							"h": 160
+						}
+					},
+					{
+						"item": "viz_sysmon_file",
+						"type": "block",
+						"position": {
+							"x": 20,
+							"y": 640,
+							"w": 680,
+							"h": 160
+						}
+					},
+					{
+						"item": "viz_sysmon_registry",
+						"type": "block",
+						"position": {
+							"x": 720,
+							"y": 640,
+							"w": 680,
+							"h": 160
+						}
+					}
+				]
+			}
+		}
+	}
+}
+    ]]></definition>
+    <meta type="hiddenElements"><![CDATA[
+{
+	"hideEdit": false,
+	"hideOpenInSearch": false,
+	"hideExport": false
+}
+    ]]></meta>
+</dashboard>
